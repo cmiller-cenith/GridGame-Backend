@@ -1,0 +1,253 @@
+openapi: 3.0.3
+info:
+  title: GridGame
+  version: 1.0.0
+  description: API for the Cenith GridGame.
+servers:
+  - url: 'https://grid.cenithinnovations.com/api'
+tags:
+  - name: World
+    description: Resources pertaining to access requests for the 
+  - name: Play
+    description: Resources pertaining to how a player plays the game
+paths:
+  /world:
+    get:
+      description: Fetches a list of different worlds/maps. Ideally used by a UI to make a selection interface from.
+      summary: Fetch a list of worlds.
+      tags:
+        - World
+      responses:
+        '200':
+          description: The operation was successful. A list of worlds were retrieved.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/World'
+    post:
+      description: Creates a new world according to the given properties. 
+      summary: Create a new world.
+      tags:
+        - World
+      requestBody:
+        description: Properties about how the world should be generated. 
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                start:
+                  $ref: '#/components/schemas/Coord'
+                end: 
+                  $ref: '#/components/schemas/Coord'
+                weights:
+                  description: The distributions of weights given to each tile when generating the world. 
+                  type: object
+                  properties:
+                    mud: 
+                      type: number
+                      minimum: 0
+                      default: 25
+                    lava:
+                      type: number
+                      minimum: 0
+                      default: 10
+                    speeder:
+                      type: number
+                      minimum: 0
+                      default: 5
+                    empty:
+                      type: number
+                      minimum: 0
+                      default: 60
+                    
+      responses:
+        '201':
+          description: The operation was succesful. The new world was created. 
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/World'
+        '400':
+          description: The operation was unsuccesful. Given parameters were somehow invalid. 
+          content: 
+            text/plain:
+              schema:
+                type: string
+                example: Invalid LAVA weight distribution provided. 
+  /world/{id}:
+    get:
+      description: Gets world information for a particular id.
+      summary: Get a particular world.
+      tags: 
+        - World
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The ID of the world to retrieve info for
+      responses:
+        '200':
+          description: The operation was successful. A world's details were returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorldSave'
+        '404':
+          description: The operation was unsuccesful. A world could not be found for the given id.
+          content:
+            text/plain:
+              schema: 
+                type: string
+                example: The requested world could not be found. 
+  /world/{id}/move:
+    post:
+      description: Perform a given action for the player in the given world.
+      summary: Create a new move for the current player in the world. 
+      tags: 
+        - Play
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: The ID of the world to perform the move against. 
+          example: TODO
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                move: 
+                  $ref: '#/components/schemas/Move'
+      responses:
+        '200': 
+          description: Creates a new move for the current player in the world. 
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoveResult'
+        '400': 
+          description: The requested move was invalid. 
+          content: 
+            text/plain:
+              schema:
+                type: string
+              example: You attempted to move in a direction that was not permitted.
+    delete:
+      description: Undoes the last move taken by the player. 
+      summary: Delete the most recent move made in the world.
+      tags:
+        - Play
+      parameters:
+        - in: path
+          name: id
+          description: The ID of the world in which we wish to undo the last operation. 
+          required: true
+          schema: 
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The operation was succesful. The last action was undone. 
+          content: 
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoveResult'
+  /world/random:
+    get:
+      tags:
+        - World
+      description: Gets a saved world at random. 
+      summary: Get a world at random. 
+      responses:
+        '200':
+          description: The operation was successful. A random world's detail were returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/World'
+    
+components:
+  schemas:
+    Coord:
+      description: A bounded (x, y) pair meant to represent a location in the world.
+      type: object
+      properties: 
+        x: 
+          type: integer
+          minimum: 0
+          maximum: 99
+        y:
+          type: integer
+          minimum: 0
+          maximum: 99
+      example: {"x": 18, "y": 82}
+    Move:
+      description: A type denoting the permitted actions in our world. 
+      type: string
+      enum: [left, right, up, down]
+      example: left
+    MoveResult:
+      description: The expected result from our server for having taken an action.
+      type: object
+      properties:
+        position:
+          $ref: '#/components/schemas/Coord'
+        health:
+          type: integer
+          minimum: 0
+        moves: 
+          type: integer
+          minimum: 0
+        available_moves:
+          type: array
+          items: 
+            $ref: '#/components/schemas/Move'
+    World:
+      description: The representation of our world - a 100x100 grid with different obstacles.
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        grid:
+          type: array
+          items: 
+            type: array
+            items: 
+              type: number
+          example: [[0, 0, 0, 0], [1, 0, 0, 0]]
+        start: 
+          $ref: '#/components/schemas/Coord'
+        end:
+          $ref: '#/components/schemas/Coord'
+    WorldSave:
+      description: World info coupled with a player's history. 
+      type: object
+      properties:
+        world:
+          $ref: '#/components/schemas/World'
+        player:
+          type: object
+          properties:
+            position:
+              $ref: '#/components/schemas/Coord'
+            health: 
+              type: integer
+              minimum: 0
+            moves:
+              type: integer
+              minimum: 0
+            taken_moves:
+              type: array
+              items:
+                $ref: '#/components/schemas/Coord'
