@@ -1,0 +1,360 @@
+openapi: 3.0.3
+info:
+  title: GridGame
+  description: API for the Cenith GridGame.
+  version: 1.0.0
+servers:
+- url: https://grid.cenithinnovations.com/api
+tags:
+- name: World
+  description: Resources pertaining to access requests for the
+- name: Play
+  description: Resources pertaining to how a player plays the game
+paths:
+  /world:
+    get:
+      tags:
+      - World
+      summary: Fetch a list of worlds.
+      description: Fetches a list of different worlds/maps. Ideally used by a UI to
+        make a selection interface from.
+      operationId: world_get
+      responses:
+        "200":
+          description: The operation was successful. A list of worlds were retrieved.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/World"
+                x-content-type: application/json
+      x-openapi-router-controller: GridGame.controllers.world_controller
+    post:
+      tags:
+      - World
+      summary: Create a new world.
+      description: Creates a new world according to the given properties.
+      operationId: world_post
+      requestBody:
+        description: Properties about how the world should be generated.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/world_body"
+        required: false
+      responses:
+        "201":
+          description: The operation was succesful. The new world was created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/World"
+        "400":
+          description: The operation was unsuccesful. Given parameters were somehow
+            invalid.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Invalid LAVA weight distribution provided.
+                x-content-type: text/plain
+      x-openapi-router-controller: GridGame.controllers.world_controller
+  /world/{id}:
+    get:
+      tags:
+      - World
+      summary: Get a particular world.
+      description: Gets world information for a particular id.
+      operationId: world_id_get
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the world to retrieve info for
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: The operation was successful. A world's details were returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorldSave"
+        "404":
+          description: The operation was unsuccesful. A world could not be found for
+            the given id.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: The requested world could not be found.
+                x-content-type: text/plain
+      x-openapi-router-controller: GridGame.controllers.world_controller
+  /world/{id}/move:
+    post:
+      tags:
+      - Play
+      summary: Create a new move for the current player in the world.
+      description: Perform a given action for the player in the given world.
+      operationId: world_id_move_post
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the world to perform the move against.
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
+        example: TODO
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/id_move_body"
+      responses:
+        "200":
+          description: Creates a new move for the current player in the world.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoveResult"
+        "400":
+          description: The requested move was invalid.
+          content:
+            text/plain:
+              schema:
+                type: string
+                x-content-type: text/plain
+              example: You attempted to move in a direction that was not permitted.
+      x-openapi-router-controller: GridGame.controllers.play_controller
+    delete:
+      tags:
+      - Play
+      summary: Delete the most recent move made in the world.
+      description: Undoes the last move taken by the player.
+      operationId: world_id_move_delete
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the world in which we wish to undo the last operation.
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: The operation was succesful. The last action was undone.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoveResult"
+      x-openapi-router-controller: GridGame.controllers.play_controller
+  /world/random:
+    get:
+      tags:
+      - World
+      summary: Get a world at random.
+      description: Gets a saved world at random.
+      operationId: world_random_get
+      responses:
+        "200":
+          description: The operation was successful. A random world's detail were
+            returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/World"
+      x-openapi-router-controller: GridGame.controllers.world_controller
+components:
+  schemas:
+    Coord:
+      type: object
+      properties:
+        x:
+          maximum: 99
+          minimum: 0
+          type: integer
+        "y":
+          maximum: 99
+          minimum: 0
+          type: integer
+      description: "A bounded (x, y) pair meant to represent a location in the world."
+      example:
+        x: 18
+        "y": 82
+    Move:
+      type: string
+      description: A type denoting the permitted actions in our world.
+      example: left
+      enum:
+      - left
+      - right
+      - up
+      - down
+    MoveResult:
+      type: object
+      properties:
+        position:
+          $ref: "#/components/schemas/Coord"
+        health:
+          minimum: 0
+          type: integer
+        moves:
+          minimum: 0
+          type: integer
+        available_moves:
+          type: array
+          items:
+            $ref: "#/components/schemas/Move"
+      description: The expected result from our server for having taken an action.
+      example:
+        moves: 0
+        health: 0
+        position:
+          x: 18
+          "y": 82
+        available_moves:
+        - left
+        - left
+    World:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        grid:
+          type: array
+          example:
+          - - 0
+            - 0
+            - 0
+            - 0
+          - - 1
+            - 0
+            - 0
+            - 0
+          items:
+            type: array
+            items:
+              type: number
+        start:
+          $ref: "#/components/schemas/Coord"
+        end:
+          $ref: "#/components/schemas/Coord"
+      description: The representation of our world - a 100x100 grid with different
+        obstacles.
+      example:
+        grid:
+        - - 0
+          - 0
+          - 0
+          - 0
+        - - 1
+          - 0
+          - 0
+          - 0
+        start:
+          x: 18
+          "y": 82
+        end: null
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+    WorldSave:
+      type: object
+      properties:
+        world:
+          $ref: "#/components/schemas/World"
+        player:
+          $ref: "#/components/schemas/WorldSave_player"
+      description: World info coupled with a player's history.
+      example:
+        world:
+          grid:
+          - - 0
+            - 0
+            - 0
+            - 0
+          - - 1
+            - 0
+            - 0
+            - 0
+          start:
+            x: 18
+            "y": 82
+          end: null
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        player:
+          moves: 0
+          health: 0
+          position:
+            x: 18
+            "y": 82
+          taken_moves:
+          - null
+          - null
+    world_weights:
+      type: object
+      properties:
+        mud:
+          minimum: 0
+          type: number
+          default: 25
+        lava:
+          minimum: 0
+          type: number
+          default: 10
+        speeder:
+          minimum: 0
+          type: number
+          default: 5
+        empty:
+          minimum: 0
+          type: number
+          default: 60
+      description: The distributions of weights given to each tile when generating
+        the world.
+    world_body:
+      type: object
+      properties:
+        start:
+          $ref: "#/components/schemas/Coord"
+        end:
+          $ref: "#/components/schemas/Coord"
+        weights:
+          $ref: "#/components/schemas/world_weights"
+    id_move_body:
+      type: object
+      properties:
+        move:
+          $ref: "#/components/schemas/Move"
+    WorldSave_player:
+      type: object
+      properties:
+        position:
+          $ref: "#/components/schemas/Coord"
+        health:
+          minimum: 0
+          type: integer
+        moves:
+          minimum: 0
+          type: integer
+        taken_moves:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coord"
+      example:
+        moves: 0
+        health: 0
+        position:
+          x: 18
+          "y": 82
+        taken_moves:
+        - null
+        - null
+
